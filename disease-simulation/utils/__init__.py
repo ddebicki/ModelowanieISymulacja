@@ -1,0 +1,1 @@
+# Inicjalizacja pakietu utils
