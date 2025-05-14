@@ -3,10 +3,11 @@
 ## Opis projektu
 Zaawansowany symulator rozprzestrzeniania się chorób z wizualizacją w czasie rzeczywistym i różnymi modelami epidemiologicznymi:
 
-- **Wizualizacja przestrzenna** - pokazuje populację jako kropki poruszające się w przestrzeni 2D
+- **Wizualizacja przestrzenna** - pokazuje populację jako kropki poruszające się w przestrzeni 2D do symulacji przy maksymalnekj wielkości populacji równej 2000
 - **Statystyki w czasie rzeczywistym** - wykresy pokazujące rozwój epidemii
 - **Interaktywne sterowanie** - możliwość włączania i wyłączania interwencji w trakcie symulacji
 - **Różne modele epidemiologiczne** - standardowy, SIR, SEIR, model sieciowy
+
 
 ## Modele epidemiologiczne
 
