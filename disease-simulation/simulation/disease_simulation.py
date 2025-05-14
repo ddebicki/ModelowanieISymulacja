@@ -26,13 +26,12 @@ class DiseaseSimulation:
         #Losowe wybranie początkowo zarażonych osób
         initially_infected = random.sample(self.population, self.config["initial_infected"])
         for person in initially_infected:
-            person.status = "infected"
-        
-        #Jeśli używamy modelu SEIR, dodajmy etap ekspozycji
-        if self.config["algorithm"] == "SEIR":
-            for person in self.population:
-                person.exposed = False
+            if self.config["algorithm"] == "SEIR":
+                person.exposed = True
+                person.status = "susceptible"
                 person.exposure_days = 0
+            else:
+                person.status = "infected"
         
         #Jeśli używamy modelu sieciowego, stwórzmy połączenia
         if self.config["algorithm"] == "network":
@@ -127,35 +126,27 @@ class DiseaseSimulation:
     
     def sir_algorithm(self):
         """Implementacja klasycznego modelu SIR."""
-        #Model SIR (Susceptible-Infected-Recovered) opiera się na równaniach różniczkowych
-        #Tu implementujemy prostą wersję dyskretną
-        
-        #Najpierw szczepienia, jeśli są włączone
+        #Model SIR (Susceptible-Infected-Recovered)
         self._apply_vaccinations()
-        
-        #Zmienne pomocnicze
         N = len(self.population)
         susceptible = [p for p in self.population if p.status == "susceptible"]
         infected = [p for p in self.population if p.status == "infected"]
-        
-        #Parametry modelu
+
         beta = self.config["infection_rate"] * self.config["contacts_per_day"] / N
         gamma = self.config["recovery_rate"]
-        
-        #Modyfikatory na podstawie interwencji
+
         if self.config["social_distancing"]:
             beta *= 0.5
         if self.config.get("quarantine_infected", False):
             beta *= 0.2
-        
-        #Prawdopodobieństwo zarażenia nowych osób
-        new_infected_count = int(beta * len(susceptible) * len(infected))
-        if new_infected_count > 0:
-            new_infected = random.sample(susceptible, min(new_infected_count, len(susceptible)))
-            for person in new_infected:
+
+        #Zarażanie
+        for person in susceptible:
+            prob = 1 - (1 - beta) ** len(infected)
+            if random.random() < prob and len(infected) > 0:
                 person.status = "infected"
-        
-        #Proces wyzdrowienia lub śmierci
+
+        #Wyzdrowienia/zgony
         for person in infected:
             person.days_infected += 1
             if random.random() < self.config["mortality_rate"]:
@@ -164,8 +155,8 @@ class DiseaseSimulation:
                 person.status = "recovered"
                 person.immune_days = self.config["immunity_period"]
                 person.days_infected = 0
-        
-        #Aktualizacja odporności
+
+        #Utrata odporności
         for person in self.population:
             if person.status == "recovered" and person.immune_days > 0:
                 person.immune_days -= 1
@@ -174,47 +165,38 @@ class DiseaseSimulation:
     
     def seir_algorithm(self):
         """Implementacja modelu SEIR z dodatkową fazą ekspozycji."""
-        #Model SEIR (Susceptible-Exposed-Infected-Recovered) dodaje fazę ekspozycji
-        
-        #Najpierw szczepienia, jeśli są włączone
+        #Model SEIR (Susceptible-Exposed-Infected-Recovered)
         self._apply_vaccinations()
-        
-        #Zmienne pomocnicze
         N = len(self.population)
-        susceptible = [p for p in self.population if p.status == "susceptible"]
-        exposed = [p for p in self.population if getattr(p, 'exposed', False) and p.status == "susceptible"]
+        susceptible = [p for p in self.population if p.status == "susceptible" and not p.exposed]
+        exposed = [p for p in self.population if p.exposed]
         infected = [p for p in self.population if p.status == "infected"]
-        
-        #Parametry modelu
+
         beta = self.config["infection_rate"] * self.config["contacts_per_day"] / N
-        alpha = 0.2  #Współczynnik przejścia z ekspozycji do infekcji (średnio 5 dni inkubacji)
+        alpha = 0.2  #przejście exposed->infected
         gamma = self.config["recovery_rate"]
-        
-        #Modyfikatory na podstawie interwencji
+
         if self.config["social_distancing"]:
             beta *= 0.5
         if self.config.get("quarantine_infected", False):
             beta *= 0.2
-        
-        #Ekspozycja nowych osób
-        new_exposed_count = int(beta * len(susceptible) * len(infected))
-        if new_exposed_count > 0:
-            new_exposed = random.sample(
-                [p for p in susceptible if not getattr(p, 'exposed', False)],
-                min(new_exposed_count, len(susceptible))
-            )
-            for person in new_exposed:
+
+        #Zarażanie (susceptible -> exposed)
+        for person in susceptible:
+            prob = 1 - (1 - beta) ** len(infected)
+            if random.random() < prob and len(infected) > 0:
                 person.exposed = True
                 person.exposure_days = 0
-        
-        #Przejście z ekspozycji do infekcji
+
+        #Przejście exposed -> infected
         for person in exposed:
             person.exposure_days += 1
             if random.random() < alpha:
                 person.exposed = False
                 person.status = "infected"
-        
-        #Proces wyzdrowienia lub śmierci
+                person.days_infected = 0
+
+        #Wyzdrowienia/zgony
         for person in infected:
             person.days_infected += 1
             if random.random() < self.config["mortality_rate"]:
@@ -223,8 +205,8 @@ class DiseaseSimulation:
                 person.status = "recovered"
                 person.immune_days = self.config["immunity_period"]
                 person.days_infected = 0
-        
-        #Aktualizacja odporności
+
+        #Utrata odporności
         for person in self.population:
             if person.status == "recovered" and person.immune_days > 0:
                 person.immune_days -= 1
@@ -298,16 +280,11 @@ class DiseaseSimulation:
                         person.immune_days = 10000  #Długotrwała odporność szczepionkowa
     
     def record_stats(self):
-        susceptible = sum(1 for p in self.population if p.status == "susceptible")
+        susceptible = sum(1 for p in self.population if p.status == "susceptible" and not getattr(p, "exposed", False))
         infected = sum(1 for p in self.population if p.status == "infected")
         recovered = sum(1 for p in self.population if p.status == "recovered")
         deceased = sum(1 for p in self.population if p.status == "deceased")
-        
-        #Dodajmy ekspozycję, jeśli używamy modelu SEIR
-        exposed = 0
-        if self.config["algorithm"] == "SEIR":
-            exposed = sum(1 for p in self.population if p.status == "susceptible" and getattr(p, 'exposed', False))
-        
+        exposed = sum(1 for p in self.population if getattr(p, "exposed", False))
         self.stats_history.append({
             "susceptible": susceptible,
             "infected": infected,

@@ -48,6 +48,27 @@ def create_real_time_visualization(simulation):
     #Dodanie tytułu i informacji
     fig.suptitle('Symulacja Rozprzestrzeniania się Choroby', fontsize=20, color='white')
     
+    # --- DODANE: informacja o limicie populacji ---
+    population_limit = 2000
+    if simulation.config["population_size"] > population_limit:
+        ax_main.text(
+            50, 50,
+            f"Graficzna wizualizacja dostępna tylko dla populacji do {population_limit} osób.\n"
+            f"Aktualna populacja: {simulation.config['population_size']}",
+            color="red", fontsize=18, ha='center', va='center', bbox=dict(facecolor='black', alpha=0.7)
+        )
+        plt.draw()
+        plt.pause(5)
+        plt.close(fig)
+        return None
+    elif simulation.config["population_size"] > 0.8 * population_limit:
+        ax_main.text(
+            50, 5,
+            f"Uwaga: graficzna wizualizacja działa optymalnie do {population_limit} osób.",
+            color="orange", fontsize=12, ha='center', va='bottom', bbox=dict(facecolor='black', alpha=0.5)
+        )
+    # --- KONIEC DODANEGO ---
+    
     #Kolory dla różnych stanów z gradientem dla zarażonych
     base_colors = {
         'susceptible': '#3498db',  #Niebieski
@@ -209,7 +230,7 @@ def create_real_time_visualization(simulation):
     
     ani = animation.FuncAnimation(
         fig, update, frames=simulation.config["simulation_days"]+1,
-        interval=200, blit=True, repeat=False
+        interval=35, blit=True, repeat=False  
     )
     
     plt.tight_layout()

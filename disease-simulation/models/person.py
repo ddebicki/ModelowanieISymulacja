@@ -19,6 +19,13 @@ class Person:
         #Atrybuty osobowości wpływające na zachowanie
         self.sociability = random.uniform(0.2, 1.0)  #Towarzyskość wpływa na liczbę kontaktów
         self.movement_pattern = random.choice(['normal', 'static', 'explorer'])  #Różne wzorce ruchu
+
+        #Dla modelu SEIR
+        self.exposed = False
+        self.exposure_days = 0
+
+        #Dla modelu sieciowego
+        self.connections = []
     
     def move(self, bounds=(100, 100)):
         if self.status == "deceased":
